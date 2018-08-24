@@ -8,7 +8,7 @@ RInG is a Java tree rewriting tool. It was written to aid in the implementation 
 
 You will need JavaCC to build RInG. You can get it from:
 
-	[https://javacc.org/](https://javacc.org/)
+[https://javacc.org/](https://javacc.org/)
 
 Once you download and extract the JavaCC zip file, make sure its bin folder is in your path.
 
