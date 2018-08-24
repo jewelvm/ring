@@ -1,0 +1,1261 @@
+/* RInG, Rewriting for Intermediate Grammar
+ * Copyright (c) 1998-2004, Rodrigo Augusto Barbato Ferreira
+ */
+options {
+  JAVA_UNICODE_ESCAPE = true;
+  OUTPUT_DIRECTORY = "ring";
+}
+
+PARSER_BEGIN(Parser)
+
+package ring;
+
+import java.io.StringWriter;
+import java.util.Vector;
+
+public final class Parser { }
+
+PARSER_END(Parser)
+
+/* White space.
+ */
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+/* Comments.
+ */
+
+MORE :
+{
+  "//" : IN_SINGLE_LINE_COMMENT
+| <"/**" ~["/"]> { input_stream.backup(1); } : IN_FORMAL_COMMENT
+| "/*" : IN_MULTI_LINE_COMMENT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+
+<IN_FORMAL_COMMENT>
+SPECIAL_TOKEN :
+{
+  <FORMAL_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_MULTI_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <MULTI_LINE_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_SINGLE_LINE_COMMENT,IN_FORMAL_COMMENT,IN_MULTI_LINE_COMMENT>
+MORE :
+{
+  < ~[] >
+}
+
+/* Reserved words and literals.
+ */
+
+TOKEN :
+{
+  < ABSTRACT: "abstract" >
+| < ASSERT: "assert" >
+| < BOOLEAN: "boolean" >
+| < BREAK: "break" >
+| < BYTE: "byte" >
+| < CASE: "case" >
+| < CATCH: "catch" >
+| < CHAR: "char" >
+| < CLASS: "class" >
+| < CONST: "const" >
+| < CONTINUE: "continue" >
+| < _DEFAULT: "default" >
+| < DO: "do" >
+| < DOUBLE: "double" >
+| < ELSE: "else" >
+| < EXTENDS: "extends" >
+| < FALSE: "false" >
+| < FINAL: "final" >
+| < FINALLY: "finally" >
+| < FLOAT: "float" >
+| < FOR: "for" >
+| < GOTO: "goto" >
+| < IF: "if" >
+| < IMPLEMENTS: "implements" >
+| < IMPORT: "import" >
+| < INSTANCEOF: "instanceof" >
+| < INT: "int" >
+| < INTERFACE: "interface" >
+| < LONG: "long" >
+| < NATIVE: "native" >
+| < NEW: "new" >
+| < NULL: "null" >
+| < PACKAGE: "package">
+| < PRIVATE: "private" >
+| < PROTECTED: "protected" >
+| < PUBLIC: "public" >
+| < RETURN: "return" >
+| < SHORT: "short" >
+| < STATIC: "static" >
+| < STRICTFP: "strictfp" >
+| < SUPER: "super" >
+| < SWITCH: "switch" >
+| < SYNCHRONIZED: "synchronized" >
+| < THIS: "this" >
+| < THROW: "throw" >
+| < THROWS: "throws" >
+| < TRANSIENT: "transient" >
+| < TRUE: "true" >
+| < TRY: "try" >
+| < VOID: "void" >
+| < VOLATILE: "volatile" >
+| < WHILE: "while" >
+}
+
+/* Literals.
+ */
+
+TOKEN :
+{
+  < INTEGER_LITERAL:
+        <DECIMAL_LITERAL> (["l","L"])?
+      | <HEX_LITERAL> (["l","L"])?
+      | <OCTAL_LITERAL> (["l","L"])?
+  >
+| < #DECIMAL_LITERAL: ["1"-"9"] (["0"-"9"])* >
+| < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+| < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+| < FLOATING_POINT_LITERAL:
+        (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? (["f","F","d","D"])?
+      | "." (["0"-"9"])+ (<EXPONENT>)? (["f","F","d","D"])?
+      | (["0"-"9"])+ <EXPONENT> (["f","F","d","D"])?
+      | (["0"-"9"])+ (<EXPONENT>)? ["f","F","d","D"]
+  >
+| < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
+| < CHARACTER_LITERAL:
+      "'"
+      (   (~["'","\\","\n","\r"])
+        | ("\\"
+            ( ["n","t","b","r","f","\\","'","\""]
+            | ["0"-"7"] ( ["0"-"7"] )?
+            | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+            )
+          )
+      )
+      "'"
+  >
+| < STRING_LITERAL:
+      "\""
+      (   (~["\"","\\","\n","\r"])
+        | ("\\"
+            ( ["n","t","b","r","f","\\","'","\""]
+            | ["0"-"7"] ( ["0"-"7"] )?
+            | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+            )
+          )
+      )*
+      "\""
+  >
+}
+
+/* Identifiers.
+ */
+
+TOKEN :
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+| < #LETTER:
+      [
+       "\u0024",
+       "\u0041"-"\u005a",
+       "\u005f",
+       "\u0061"-"\u007a",
+       "\u00c0"-"\u00d6",
+       "\u00d8"-"\u00f6",
+       "\u00f8"-"\u00ff",
+       "\u0100"-"\u1fff",
+       "\u3040"-"\u318f",
+       "\u3300"-"\u337f",
+       "\u3400"-"\u3d2d",
+       "\u4e00"-"\u9fff",
+       "\uf900"-"\ufaff"
+      ]
+  >
+| < #DIGIT:
+      [
+       "\u0030"-"\u0039",
+       "\u0660"-"\u0669",
+       "\u06f0"-"\u06f9",
+       "\u0966"-"\u096f",
+       "\u09e6"-"\u09ef",
+       "\u0a66"-"\u0a6f",
+       "\u0ae6"-"\u0aef",
+       "\u0b66"-"\u0b6f",
+       "\u0be7"-"\u0bef",
+       "\u0c66"-"\u0c6f",
+       "\u0ce6"-"\u0cef",
+       "\u0d66"-"\u0d6f",
+       "\u0e50"-"\u0e59",
+       "\u0ed0"-"\u0ed9",
+       "\u1040"-"\u1049"
+      ]
+  >
+}
+
+/* Separators.
+ */
+
+TOKEN :
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < LBRACKET: "[" >
+| < RBRACKET: "]" >
+| < SEMICOLON: ";" >
+| < COMMA: "," >
+| < DOT: "." >
+}
+
+/* Operators.
+ */
+
+TOKEN :
+{
+  < ASSIGN: "=" >
+| < GT: ">" >
+| < LT: "<" >
+| < BANG: "!" >
+| < TILDE: "~" >
+| < HOOK: "?" >
+| < COLON: ":" >
+| < EQ: "==" >
+| < LE: "<=" >
+| < GE: ">=" >
+| < NE: "!=" >
+| < SC_OR: "||" >
+| < SC_AND: "&&" >
+| < INCR: "++" >
+| < DECR: "--" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < STAR: "*" >
+| < SLASH: "/" >
+| < BIT_AND: "&" >
+| < BIT_OR: "|" >
+| < XOR: "^" >
+| < REM: "%" >
+| < LSHIFT: "<<" >
+| < RSIGNEDSHIFT: ">>" >
+| < RUNSIGNEDSHIFT: ">>>" >
+| < PLUSASSIGN: "+=" >
+| < MINUSASSIGN: "-=" >
+| < STARASSIGN: "*=" >
+| < SLASHASSIGN: "/=" >
+| < ANDASSIGN: "&=" >
+| < ORASSIGN: "|=" >
+| < XORASSIGN: "^=" >
+| < REMASSIGN: "%=" >
+| < LSHIFTASSIGN: "<<=" >
+| < RSIGNEDSHIFTASSIGN: ">>=" >
+| < RUNSIGNEDSHIFTASSIGN: ">>>=" >
+}
+
+TOKEN :
+{
+  < RULEID: "@@" | "@" (["0"-"9"])+ >
+}
+
+/* Program structuring syntax follows.
+ */
+
+void CompilationUnit(IndentWriter out) :
+{}
+{
+  { out.println("/* Generated by RInG, do not edit");
+    out.println(" * Copyright (c) 1998-2004, Rodrigo Augusto Barbato Ferreira");
+    out.println(" */"); }
+  [ PackageDeclaration(out) { out.println(); } ]
+  ( ImportDeclaration(out) )* { out.println(); }
+  ( TypeDeclaration(out) )*
+  <EOF>
+}
+
+void PackageDeclaration(IndentWriter out) :
+{}
+{
+  "package" { out.print("package "); }
+  Name(out)
+  ";" { out.println(";"); }
+}
+
+void ImportDeclaration(IndentWriter out) :
+{}
+{
+  "import" { out.print("import "); }
+  Name(out)
+  [ "." "*" { out.print(".*"); } ]
+  ";" { out.println(";"); }
+}
+
+void TypeDeclaration(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( ( "abstract" | "final" | "public" | "strictfp" )* "class" )
+  ClassDeclaration(out) { out.println(); }
+| InterfaceDeclaration(out) { out.println(); }
+| ";" { out.println(";"); }
+}
+
+/* Declaration syntax follows.
+ */
+
+void ClassDeclaration(IndentWriter out) :
+{}
+{
+  ( "abstract" { out.print("abstract "); } 
+  | "final" { out.print("final "); } 
+  | "public" { out.print("public "); } 
+  | "strictfp" { out.print("strictfp "); } )*
+  UnmodifiedClassDeclaration(out, true)
+}
+
+void UnmodifiedClassDeclaration(IndentWriter out, boolean isStatic) :
+{ String name; }
+{
+  "class" { out.print("class "); }
+  name = Identifier()
+  { out.print(name);
+    out.print(" "); }
+  [ "extends" { out.print("extends "); } Name(out) { out.print(" "); } ]
+  [ "implements" { out.print("implements "); } NameList(out) { out.print(" "); } ]
+  ClassBody(out, isStatic, name)
+}
+
+void ClassBody(IndentWriter out, boolean isStatic, String className) :
+{}
+{
+  "{"
+  { out.println("{");
+    out.println();
+    out.indent();
+    Main.grammar.enterScope(isStatic, className); }
+  ( ClassBodyDeclaration(out) )*
+  { Main.emitTreeMatcher(out);
+    Main.grammar.exitScope(); }
+  "}" 
+  { out.unindent();
+    out.println("}"); }
+}
+
+void NestedClassDeclaration(IndentWriter out) :
+{ boolean isStatic = false; }
+{
+  ( "static" { out.print("static "); isStatic = true; }
+  | "abstract" { out.print("abstract "); }
+  | "final" { out.print("final "); }
+  | "public" { out.print("public "); }
+  | "protected" { out.print("protected "); }
+  | "private" { out.print("private "); }
+  | "strictfp" { out.print("strictfp "); } )*
+  UnmodifiedClassDeclaration(out, isStatic)
+}
+
+void ClassBodyDeclaration(IndentWriter out) :
+{}
+{
+  LOOKAHEAD(2)
+  Initializer(out) { out.println(); }
+| LOOKAHEAD( ( "static" | "abstract" | "final" | "public" | "protected" | "private" | "strictfp" )* "class" )
+  NestedClassDeclaration(out) { out.println(); }
+| LOOKAHEAD( ( "static" | "abstract" | "final" | "public" | "protected" | "private" | "strictfp" )* "interface" )
+  NestedInterfaceDeclaration(out) { out.println(); }
+| LOOKAHEAD( [ "public" | "protected" | "private" ] Name(null) "(" )
+  ConstructorDeclaration(out) { out.println(); }
+| LOOKAHEAD( RuleDeclarationLookahead() )
+  RuleDeclaration(out)
+| LOOKAHEAD( MethodDeclarationLookahead() )
+  MethodDeclaration(out) { out.println(); }
+| FieldDeclaration(out)
+}
+
+void InterfaceDeclaration(IndentWriter out) :
+{}
+{
+  ( "abstract" { out.print("abstract "); }
+  | "public" { out.print("public "); }
+  | "strictfp" { out.print("strictfp "); } )*
+  UnmodifiedInterfaceDeclaration(out)
+}
+
+void NestedInterfaceDeclaration(IndentWriter out) :
+{}
+{
+  ( "static" { out.print("static "); }
+  | "abstract" { out.print("abstract "); }
+  | "final" { out.print("final "); }
+  | "public" { out.print("public "); }
+  | "protected" { out.print("protected "); }
+  | "private" { out.print("private "); }
+  | "strictfp" { out.print("strictfp "); } )*
+  UnmodifiedInterfaceDeclaration(out)
+}
+
+void UnmodifiedInterfaceDeclaration(IndentWriter out) :
+{ String name; }
+{
+  "interface" { out.print("interface "); }
+  name = Identifier()
+  { out.print(name);
+    out.print(" "); }
+  [ "extends" { out.print("extends "); } NameList(out) { out.print(" "); } ]
+  "{" 
+  { out.println("{"); 
+    out.println();
+    out.indent(); }
+  ( InterfaceMemberDeclaration(out) )* 
+  "}" 
+  { out.unindent();
+    out.println("}"); }
+}
+
+void InterfaceMemberDeclaration(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( ( "static" | "abstract" | "final" | "public" | "protected" | "private" | "strictfp" )* "class" )
+  NestedClassDeclaration(out) { out.println(); }
+| LOOKAHEAD( ( "static" | "abstract" | "final" | "public" | "protected" | "private" | "strictfp" )* "interface" )
+  NestedInterfaceDeclaration(out) { out.println(); }
+| LOOKAHEAD( MethodDeclarationLookahead() )
+  MethodDeclaration(out) { out.println(); }
+| FieldDeclaration(out)
+}
+
+void FieldDeclaration(IndentWriter out) :
+{}
+{
+  ( "public" { out.print("public "); }
+  | "protected" { out.print("protected "); }
+  | "private" { out.print("private "); }
+  | "static" { out.print("static "); }
+  | "final" { out.print("final "); }
+  | "transient" { out.print("transient "); }
+  | "volatile" { out.print("volatile "); } )*
+  Type(out) 
+  { out.print(" "); }
+  VariableDeclarator(out) ( "," { out.print(", "); } VariableDeclarator(out) )*
+  ";" { out.println(";"); }
+}
+
+void VariableDeclarator(IndentWriter out) :
+{}
+{
+  VariableDeclaratorId(out)
+  [ "=" { out.print(" = "); } VariableInitializer(out) ]
+}
+
+void VariableDeclaratorId(IndentWriter out) :
+{ String name; }
+{
+  name = Identifier() { out.print(name); }
+  ( "[" "]" { out.print("[]"); } )*
+}
+
+void VariableInitializer(IndentWriter out) :
+{}
+{
+  ArrayInitializer(out)
+| Expression(out)
+}
+
+void ArrayInitializer(IndentWriter out) :
+{}
+{
+  "{" { out.println("{"); }
+  [ VariableInitializer(out)
+    ( LOOKAHEAD(2) "," { out.print(","); } VariableInitializer(out) )* ]
+  [ "," { out.print(","); } ]
+  "}" { out.println("}"); }
+}
+
+void MethodDeclaration(IndentWriter out) :
+{ String name; }
+{
+  ( "public" { out.print("public "); }
+  | "protected" { out.print("protected "); }
+  | "private" { out.print("private "); }
+  | "static" { out.print("static "); }
+  | "abstract" { out.print("abstract "); }
+  | "final" { out.print("final "); }
+  | "native" { out.print("native "); }
+  | "synchronized" { out.print("synchronized "); }
+  | "strictfp" { out.print("strictfp "); } )*
+  ResultType(out)
+  { out.print(" "); }
+  name = Identifier() { out.print(name); }
+  FormalParameters(out)
+  ( "[" "]" { out.print("[]"); } )* 
+  [ "throws" { out.print(" throws "); } NameList(out) ]
+  ( { out.print(" "); } Block(out) | ";" { out.println(";"); } )
+}
+
+void FormalParameters(IndentWriter out) :
+{}
+{
+  "(" { out.print("("); }
+  [ FormalParameter(out) ( "," { out.print(", "); } FormalParameter(out) )* ]
+  ")" { out.print(")"); }
+}
+
+void FormalParameter(IndentWriter out) :
+{}
+{
+  [ "final" { out.print("final "); } ]
+  Type(out)
+  { out.print(" "); }
+  VariableDeclaratorId(out)
+}
+
+void ConstructorDeclaration(IndentWriter out) :
+{ String name; }
+{
+  [ "public" { out.print("public "); }
+  | "protected" { out.print("protected "); }
+  | "private" { out.print("private "); } ]
+  name = Identifier() { out.print(name); }
+  FormalParameters(out)
+  [ "throws" { out.print(" throws "); } NameList(out) ]
+  "{" 
+  { out.println("{"); 
+    out.indent(); }
+  [ LOOKAHEAD( ExplicitConstructorInvocation() ) ExplicitConstructorInvocation(out) ]
+  ( BlockStatement(out) )*
+  "}" 
+  { out.unindent();
+    out.println("}"); }
+}
+
+void ExplicitConstructorInvocation(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( "this" Arguments() ";" )
+  "this" { out.print("this"); }
+  Arguments(out)
+  ";" { out.println(";"); }
+| [ LOOKAHEAD(2) 
+    PrimaryExpression(out)
+    "." { out.print("."); } ] 
+  "super" { out.print("super"); }
+  Arguments(out)
+  ";" { out.println(";"); }
+}
+
+void Initializer(IndentWriter out) :
+{}
+{
+  [ "static" { out.print("static "); } ] Block(out)
+}
+
+void RuleDeclaration(IndentWriter out) :
+{ String modifiers = "";
+  String ret;
+  String name;
+  String signature;
+  Vector vars = null;
+  String exp = null;
+  NonTerminal lhs; }
+{
+  { if (Main.grammar.currentClass() == null)
+      throw new IllegalArgumentException("Anonymous classes cannot be annotated"); }
+  [ "public" { modifiers = "public "; }
+  | "protected" { modifiers = "protected "; }
+  | "private" { modifiers = "private "; } ]
+  { StringWriter sw = new StringWriter();
+    IndentWriter swout = new IndentWriter(sw); }
+  ResultType(swout) 
+  { swout.flush();
+    ret = sw.toString(); }
+  name = Identifier()
+  { swout.print(" ");
+    swout.print(name); }
+  { sw = new StringWriter();
+    swout = new IndentWriter(sw); }
+  FormalParameters(swout)
+  ( "[" "]" { swout.print("[]"); } )*
+  [ "throws" { swout.print(" throws "); } NameList(swout) ]
+  { swout.flush();
+    signature = sw.toString(); }
+  [ vars = RuleVariables() [ "["
+    { sw = new StringWriter();
+      swout = new IndentWriter(sw); }
+    Expression(swout)
+    { swout.flush();
+      exp = sw.toString(); } "]" ] ]
+  { lhs = Main.grammar.declareNonTerminal(name, modifiers, ret, signature, vars, exp); }
+  ":"
+  ( RuleBody(lhs) ( LOOKAHEAD(2) "|" RuleBody(lhs) )* [ "|" DefaultRuleBody(lhs) ]
+  | DefaultRuleBody(lhs) )
+  ";"
+}
+
+Vector RuleVariables() :
+{ Vector list = new Vector(); }
+{
+  "<" RuleVariable(list) ( "," RuleVariable(list) )* ">"
+  { return list; }
+}
+
+void RuleVariable(Vector list) :
+{}
+{
+  { StringWriter sw = new StringWriter();
+    IndentWriter swout = new IndentWriter(sw); }
+  Type(swout) 
+  { swout.print(" "); } 
+  VariableDeclaratorId(swout)
+  { swout.flush();
+    list.addElement(sw.toString()); }
+}
+
+void RuleBody(NonTerminal lhs) :
+{ TreePattern tree;
+  String match = null;
+  String cost = null;
+  String action = null; }
+{
+  tree = RuleTree(lhs)
+  [ "[" 
+    { StringWriter sw = new StringWriter();
+      IndentWriter swout = new IndentWriter(sw); } 
+    Expression(swout)
+    { swout.flush();
+      match = sw.toString(); } "]" ] 
+  [ { StringWriter sw = new StringWriter();
+      IndentWriter swout = new IndentWriter(sw); }
+    Block(swout)
+    { swout.flush();
+      cost = sw.toString(); } ] 
+  [ "="
+    { StringWriter sw = new StringWriter();
+      IndentWriter swout = new IndentWriter(sw); }
+    Block(swout)
+    { swout.flush();
+      action = sw.toString(); } ]
+  { Main.grammar.declareRule(lhs, tree, match, cost, action); }
+}
+
+void DefaultRuleBody(NonTerminal nonTerminal) :
+{ String cost = null;
+  String action = null; }
+{
+  "default" 
+  [ { StringWriter sw = new StringWriter();
+      IndentWriter swout = new IndentWriter(sw); } 
+    Block(swout) 
+    { swout.flush();
+      cost = sw.toString(); } ] 
+  [ "="
+    { StringWriter sw = new StringWriter();
+      IndentWriter swout = new IndentWriter(sw); } 
+    Block(swout)
+    { swout.flush();
+      action = sw.toString(); } ] 
+  { Main.grammar.declareRule(nonTerminal, null, null, cost, action); }
+}
+
+TreePattern RuleTree(NonTerminal lhs) :
+{ String ident;
+  String name;
+  Vector sons = new Vector();
+  TreePattern left = null, right = null; }
+{
+  LOOKAHEAD(2)
+  ident = Identifier() { name = ident; }
+  ( "." ident = Identifier() { name += "."+ident; } )+ 
+  [ "(" left = RuleTree(lhs) { sons.addElement(left); } 
+  ( "," right = RuleTree(lhs) { sons.addElement(right); } )* 
+    ")" ]
+  { TreePattern[] patterns = new TreePattern[sons.size()];
+    for (int i = 0; i < patterns.length; i++)
+      patterns[i] = (TreePattern)sons.elementAt(i);
+    return new TreePattern(Main.grammar.getTerminal(name, patterns.length), patterns); }
+| ident = Identifier()
+  { return new TreePattern(Main.grammar.getNonTerminal(ident), new TreePattern[]{ }); }
+}
+
+/* Type, name and expression syntax follows.
+ */
+
+void Type(IndentWriter out) :
+{}
+{
+  ( PrimitiveType(out) | Name(out) )
+  ( "[" "]" { out.print("[]"); } )*
+}
+
+void PrimitiveType(IndentWriter out) :
+{}
+{
+  "boolean" { out.print("boolean"); }
+| "char" { out.print("char"); }
+| "byte" { out.print("byte"); }
+| "short" { out.print("short"); }
+| "int" { out.print("int"); }
+| "long" { out.print("long"); }
+| "float" { out.print("float"); }
+| "double" { out.print("double"); }
+}
+
+void ResultType(IndentWriter out) :
+{}
+{
+  "void" { out.print("void"); }
+| Type(out)
+}
+
+String Identifier() :
+{ Token token; }
+{
+  token = <IDENTIFIER> { return token.image; }
+}
+
+void Name(IndentWriter out) :
+{ String name; }
+{
+  name = Identifier() { out.print(name); }
+  ( LOOKAHEAD(2) "." { out.print("."); } 
+    name = Identifier() { out.print(name); } )*
+}
+
+void NameList(IndentWriter out) :
+{}
+{
+  Name(out)
+  ( "," { out.print(", "); } Name(out) )*
+}
+
+/* Expression syntax follows.
+ */
+
+void Expression(IndentWriter out) :
+{}
+{
+  ConditionalExpression(out)
+  [ { out.print(" "); } AssignmentOperator(out) { out.print(" "); } Expression(out) ]
+}
+
+void AssignmentOperator(IndentWriter out) :
+{}
+{
+  "=" { out.print("="); }
+| "*=" { out.print("+="); }
+| "/=" { out.print("/="); }
+| "%=" { out.print("%="); }
+| "+=" { out.print("+="); }
+| "-=" { out.print("-="); }
+| "<<=" { out.print("<<="); }
+| ">>=" { out.print(">>="); }
+| ">>>=" { out.print(">>>="); }
+| "&=" { out.print("&="); }
+| "^=" { out.print("^="); }
+| "|=" { out.print("|="); }
+}
+
+void ConditionalExpression(IndentWriter out) :
+{}
+{
+  ConditionalOrExpression(out)
+  [ "?" { out.print(" ? "); } Expression(out) ":" { out.print(" : "); } ConditionalExpression(out) ]
+}
+
+void ConditionalOrExpression(IndentWriter out) :
+{}
+{
+  ConditionalAndExpression(out)
+  ( "||" { out.print(" || "); } ConditionalAndExpression(out) )*
+}
+
+void ConditionalAndExpression(IndentWriter out) :
+{}
+{
+  InclusiveOrExpression(out)
+  ( "&&" { out.print(" && "); } InclusiveOrExpression(out) )*
+}
+
+void InclusiveOrExpression(IndentWriter out) :
+{}
+{
+  ExclusiveOrExpression(out)
+  ( "|" { out.print(" | "); } ExclusiveOrExpression(out) )*
+}
+
+void ExclusiveOrExpression(IndentWriter out) :
+{}
+{
+  AndExpression(out)
+  ( "^" { out.print(" ^ "); } AndExpression(out) )*
+}
+
+void AndExpression(IndentWriter out) :
+{}
+{
+  EqualityExpression(out)
+  ( "&" { out.print(" & "); } EqualityExpression(out) )*
+}
+
+void EqualityExpression(IndentWriter out) :
+{}
+{
+  InstanceOfExpression(out)
+  ( ( "==" { out.print(" == "); } | "!=" { out.print(" != "); } ) 
+    InstanceOfExpression(out) )*
+}
+
+void InstanceOfExpression(IndentWriter out) :
+{}
+{
+  RelationalExpression(out)
+  [ "instanceof" { out.print(" instanceof "); } Type(out) ]
+}
+
+void RelationalExpression(IndentWriter out) :
+{}
+{
+  ShiftExpression(out)
+  ( ( "<" { out.print(" < "); } |  ">" { out.print(" > "); } | "<=" { out.print(" <= "); } | ">=" { out.print(" >= "); } )
+    ShiftExpression(out) )*
+}
+
+void ShiftExpression(IndentWriter out) :
+{}
+{
+  AdditiveExpression(out)
+  ( ( "<<" { out.print(" << "); } | ">>" { out.print(" >> "); } | ">>>" { out.print(" >>> "); } )
+    AdditiveExpression(out) )*
+}
+
+void AdditiveExpression(IndentWriter out) :
+{}
+{
+  MultiplicativeExpression(out)
+  ( ( "+" { out.print("+"); } | "-" { out.print("-"); } )
+    MultiplicativeExpression(out) )*
+}
+
+void MultiplicativeExpression(IndentWriter out) :
+{}
+{
+  UnaryExpression(out)
+  ( ( "*" { out.print(" * "); } | "/" { out.print(" / "); } | "%" { out.print(" % "); } )
+     UnaryExpression(out) )*
+}
+
+void UnaryExpression(IndentWriter out) :
+{}
+{
+  ( "+" { out.print("+ "); } | "-" { out.print("- "); } )
+  UnaryExpression(out)
+| PreIncrementExpression(out)
+| PreDecrementExpression(out)
+| UnaryExpressionNotPlusMinus(out)
+}
+
+void PreIncrementExpression(IndentWriter out) :
+{}
+{
+  "++" { out.print("++ "); } PrimaryExpression(out)
+}
+
+void PreDecrementExpression(IndentWriter out) :
+{}
+{
+  "--" { out.print("-- "); } PrimaryExpression(out)
+}
+
+void UnaryExpressionNotPlusMinus(IndentWriter out) :
+{}
+{
+  ( "~" { out.print("~ "); } | "!" { out.print("! "); } )
+  UnaryExpression(out)
+| LOOKAHEAD( CastLookahead() )
+  CastExpression(out)
+| PostfixExpression(out)
+}
+
+void PostfixExpression(IndentWriter out) :
+{}
+{
+  PrimaryExpression(out)
+  [ "++" { out.print(" ++"); } | "--" { out.print(" --"); } ]
+}
+
+void CastExpression(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( "(" PrimitiveType(null) )
+  "(" { out.print("("); }
+  Type(out)
+  ")" { out.print(")"); }
+  UnaryExpression(out)
+| "(" { out.print("("); }
+  Type(out)
+  ")" { out.print(")"); }
+  UnaryExpressionNotPlusMinus(out)
+}
+
+void PrimaryExpression(IndentWriter out) :
+{}
+{
+  PrimaryPrefix(out)
+  ( LOOKAHEAD(2) PrimarySuffix(out) )*
+}
+
+void PrimaryPrefix(IndentWriter out) :
+{ String name; }
+{
+  Literal(out)
+| "this" { out.print("this"); }
+| "super" "." { out.print("super."); } name = Identifier() { out.print(name); }
+| "(" { out.print("("); } Expression(out) ")" { out.print(")"); }
+| AllocationExpression(out)
+| LOOKAHEAD( ResultType(null) "." "class" )
+  ResultType(out) "." "class" { out.print(".class"); }
+| Name(out)
+| token = <RULEID> { out.print(token.image); }
+}
+
+void PrimarySuffix(IndentWriter out) :
+{ String name; }
+{
+  LOOKAHEAD(2)
+  "." "this" { out.print(".this"); }
+| LOOKAHEAD(2)
+  "." { out.print("."); } AllocationExpression(out)
+| "[" { out.print("["); } Expression(out) "]" { out.print("]"); }
+| "." { out.print("."); } name = Identifier() { out.print(name); }
+| Arguments(out)
+}
+
+void Literal(IndentWriter out) :
+{ Token token; }
+{
+  token = <INTEGER_LITERAL> { out.print(token.image); }
+| token = <FLOATING_POINT_LITERAL> { out.print(token.image); }
+| token = <CHARACTER_LITERAL> { out.print(token.image); }
+| token = <STRING_LITERAL> { out.print(token.image); }
+| BooleanLiteral(out)
+| NullLiteral(out)
+}
+
+void BooleanLiteral(IndentWriter out) :
+{}
+{
+  "true" { out.print("true"); }
+| "false" { out.print("false"); }
+}
+
+void NullLiteral(IndentWriter out) :
+{}
+{
+  "null" { out.print("null"); }
+}
+
+void Arguments(IndentWriter out) :
+{}
+{
+  "(" { out.print("("); }
+  [ ArgumentList(out) ] 
+  ")" { out.print(")"); }
+}
+
+void ArgumentList(IndentWriter out) :
+{}
+{
+  Expression(out)
+  ( "," { out.print(", "); } Expression(out) )*
+}
+
+void AllocationExpression(IndentWriter out) :
+{}
+{
+  LOOKAHEAD(2)
+  "new" { out.print("new "); }
+  PrimitiveType(out)
+  ArrayDimsAndInits(out)
+| "new" { out.print("new "); }
+  Name(out)
+  ( ArrayDimsAndInits(out) | Arguments(out) [ ClassBody(out, false, null) ] )
+}
+
+void ArrayDimsAndInits(IndentWriter out) :
+{}
+{
+  LOOKAHEAD(2)
+  ( LOOKAHEAD(2) "[" { out.print("["); } Expression(out) "]" { out.print("]"); } )+ 
+  ( LOOKAHEAD(2) "[" "]" { out.print("[]"); } )*
+| ( "[" "]" { out.print("[]"); } )+ ArrayInitializer(out)
+}
+
+/* Statement syntax follows.
+ */
+
+void Statement(IndentWriter out) :
+{}
+{
+  LOOKAHEAD(2)
+  LabeledStatement(out)
+| Block(out)
+| EmptyStatement(out)
+| StatementExpression(out) ";" { out.println(";"); }
+| AssertStatement(out)
+| SwitchStatement(out)
+| IfStatement(out)
+| WhileStatement(out)
+| DoStatement(out)
+| ForStatement(out)
+| BreakStatement(out)
+| ContinueStatement(out)
+| ReturnStatement(out)
+| ThrowStatement(out)
+| SynchronizedStatement(out)
+| TryStatement(out)
+}
+
+void LabeledStatement(IndentWriter out) :
+{ String name; }
+{
+  name = Identifier() { out.print(name); }
+  ":" { out.println(":"); }
+  Statement(out)
+}
+
+void Block(IndentWriter out) :
+{}
+{
+  "{" 
+  { out.println("{"); 
+    out.indent(); }
+  ( BlockStatement(out) )* 
+  "}" 
+  { out.unindent();
+    out.println("}"); }
+}
+
+void BlockStatement(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( [ "final" ] Type() Identifier() )
+  LocalVariableDeclaration(out) ";" { out.println(";"); }
+| Statement(out)
+| UnmodifiedClassDeclaration(out, false)
+| UnmodifiedInterfaceDeclaration(out)
+}
+
+void LocalVariableDeclaration(IndentWriter out) :
+{}
+{
+  [ "final" { out.print("final "); } ] 
+  Type(out) 
+  { out.print(" "); }
+  VariableDeclarator(out)
+  ( "," { out.print(", "); } VariableDeclarator(out) )*
+}
+
+void EmptyStatement(IndentWriter out) :
+{}
+{
+  ";" { out.println(";"); }
+}
+
+void StatementExpression(IndentWriter out) :
+{}
+{
+  PreIncrementExpression(out)
+| PreDecrementExpression(out)
+| PrimaryExpression(out)
+  [ "++" { out.print(" ++"); }
+  | "--" { out.print(" --"); } 
+  | { out.print(" "); } AssignmentOperator(out) { out.print(" "); } Expression(out) ]
+}
+
+void AssertStatement(IndentWriter out) :
+{}
+{
+  "assert" { out.print("assert "); }
+  Expression(out)
+  [ ":"  { out.print(" : "); } Expression(out) ]
+  ";" { out.println(";"); }
+}
+
+void SwitchStatement(IndentWriter out) :
+{}
+{
+  "switch" "(" { out.print("switch ("); }
+  Expression(out)
+  ")" "{" { out.println(") {"); } 
+  ( SwitchLabel(out) ( BlockStatement(out) )* )* 
+  "}" { out.println("}"); } 
+}
+
+void SwitchLabel(IndentWriter out) :
+{}
+{
+  "case" { out.print("case "); }
+  Expression(out)
+  ":" { out.println(":"); }
+| "default" ":" { out.println("default:"); }
+}
+
+void IfStatement(IndentWriter out) :
+{}
+{
+  "if" "(" { out.print("if ("); }
+  Expression(out)
+  ")" { out.println(")"); }
+  Statement(out)
+  [ LOOKAHEAD(1) "else" { out.println(" else"); } Statement(out) ]
+}
+
+void WhileStatement(IndentWriter out) :
+{}
+{
+  "while" "(" { out.print("while ("); }
+  Expression(out)
+  ")" { out.println(")"); }
+  Statement(out)
+}
+
+void DoStatement(IndentWriter out) :
+{}
+{
+  "do" { out.println("do"); }
+  Statement(out)
+  "while" "(" { out. print(" while ("); }
+  Expression(out)
+  ")" ";" { out.println(");"); }
+}
+
+void ForStatement(IndentWriter out) :
+{}
+{
+  "for" "(" { out.print("for ("); }
+  [ ForInit(out) ]
+  ";" { out.print("; "); }
+  [ Expression(out) ] 
+  ";" { out.print("; "); }
+  [ ForUpdate(out) ]
+  ")" { out.println(")"); }
+  Statement(out)
+}
+
+void ForInit(IndentWriter out) :
+{}
+{
+  LOOKAHEAD( [ "final" ] Type() Identifier() )
+  LocalVariableDeclaration(out)
+| StatementExpressionList(out)
+}
+
+void StatementExpressionList(IndentWriter out) :
+{}
+{
+  StatementExpression(out)
+  ( "," { out.print(", "); } StatementExpression(out) )*
+}
+
+void ForUpdate(IndentWriter out) :
+{}
+{
+  StatementExpressionList(out)
+}
+
+void BreakStatement(IndentWriter out) :
+{ String name; }
+{
+  "break" { out.print("break"); }
+  [ { out.print(" "); } name = Identifier() { out.print(name); } ]
+  ";" { out.println(";"); }
+}
+
+void ContinueStatement(IndentWriter out) :
+{ String name; }
+{
+  "continue" { out.print("continue"); }
+  [ { out.print(" "); } name = Identifier() { out.print(name); } ]
+  ";" { out.println(";"); }
+}
+
+void ReturnStatement(IndentWriter out) :
+{}
+{
+  "return" { out.print("return"); }
+  [ { out.print(" "); } Expression(out) ]
+  ";" { out.println(";"); }
+}
+
+void ThrowStatement(IndentWriter out) :
+{}
+{
+  "throw" { out.print("throw "); }
+  Expression(out)
+  ";" { out.println(";"); }
+}
+
+void SynchronizedStatement(IndentWriter out) :
+{}
+{
+  "synchronized" "(" { out.print("synchronized ("); }
+  Expression(out)
+  ")" { out.print(")"); }
+  Block(out)
+}
+
+void TryStatement(IndentWriter out) :
+{}
+{
+  "try" { out.print("try "); }
+  Block(out)
+  ( "catch" "(" { out.print("catch ("); } 
+    FormalParameter(out) ")"  { out.print(")"); } Block(out) )*
+  [ "finally" { out.print("finally "); } Block(out) ]
+}
+
+/* Lookahead follows.
+ */
+
+void RuleDeclarationLookahead() :
+{}
+{
+  [ "public" | "protected" | "private" ]
+  ResultType(null) Identifier() FormalParameters(null) ( "[" "]" )* [ "throws" NameList(null) ]
+  ( "<" | ":" )
+}
+
+void MethodDeclarationLookahead() :
+{}
+{
+  ( "public" | "protected" | "private" | "static" | "abstract" | "final" | "native" | "synchronized" | "strictfp" )*
+  ResultType(null) Identifier() "("
+}
+
+void CastLookahead() :
+{}
+{
+  LOOKAHEAD(2)
+  "(" PrimitiveType(null)
+| LOOKAHEAD( "(" Name(null) "[" )
+  "(" Name(null) "[" "]"
+| "(" Name(null) ")" ( "~" | "!" | "(" | Identifier() | "this" | "super" | "new" | Literal(null) | <RULEID> )
+}
+
