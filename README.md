@@ -1,7 +1,5 @@
 #  RInG, Rewriting for Intermediate Grammar
 
-## What is RInG?
-
 RInG is a Java tree rewriting tool. It was written to aid in the implementation of the JewelVM optimizer and code generator.
 
 ## Dependencies
